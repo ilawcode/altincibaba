@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Altın Takip Paneli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col justify-between">
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 tracking-tight">🪙 Altın Fiyatları Takip Paneli</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Kuveyt Türk, Albaraka, Vakıf Katılım ve Harem Altın</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden md:block">
+                    <span class="text-xs text-slate-400 block">Son Güncelleme Zamanı</span>
+                    <span id="globalTimestamp" class="text-sm font-semibold text-slate-700">-</span>
+                </div>
+                <button id="refreshBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm px-5 py-2.5 rounded-lg transition-all inline-flex items-center gap-2 active:scale-95">
+                    Şimdi Güncelle
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+        <div class="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-900 text-white text-sm font-semibold">
+                        <th class="p-4">Banka / Kurum</th>
+                        <th class="p-4">Altın Türü</th>
+                        <th class="p-4 text-right">Alış (TL)</th>
+                        <th class="p-4 text-right">Satış (TL)</th>
+                        <th class="p-4 text-center">Makas (Fark)</th>
+                        <th class="p-4 text-center">Veri Zamanı</th>
+                    </tr>
+                </thead>
+                <tbody id="priceTableBody" class="divide-y divide-slate-100">
+                    <tr><td colspan="6" class="p-12 text-center text-slate-500">Veriler yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        const tableBody = document.getElementById('priceTableBody');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const globalTimestamp = document.getElementById('globalTimestamp');
+
+        function calculateSpread(buyStr, sellStr) {
+            const buy = parseFloat(buyStr.replace('.', '').replace(',', '.'));
+            const sell = parseFloat(sellStr.replace('.', '').replace(',', '.'));
+            if (isNaN(buy) || !sell) return '-';
+            return (sell - buy).toFixed(2) + " TL";
+        }
+
+        async function loadPrices() {
+            refreshBtn.disabled = true;
+            try {
+                const response = await fetch('http://localhost:3000/api/gold-prices');
+                const data = await response.json();
+                tableBody.innerHTML = '';
+                if(data.length > 0) globalTimestamp.textContent = data[0].time;
+
+                data.forEach(item => {
+                    const spread = calculateSpread(item.buy, item.sell);
+                    const row = `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="p-4 font-bold text-slate-800">${item.bank}</td>
+                            <td class="p-4"><span class="bg-slate-100 text-slate-800 text-xs font-semibold px-2.5 py-0.5 rounded">${item.type}</span></td>
+                            <td class="p-4 text-right font-mono text-emerald-600 font-semibold">${item.buy}</td>
+                            <td class="p-4 text-right font-mono text-rose-600 font-semibold">${item.sell}</td>
+                            <td class="p-4 text-center font-mono text-slate-600">${spread}</td>
+                            <td class="p-4 text-center text-xs text-slate-500 font-mono">${item.time.split(' ')[1] || item.time}</td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML('beforeend', row);
+                });
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="p-12 text-center text-rose-500 font-semibold">Sunucu bağlantısı başarısız. Lütfen server.js'i çalıştırın.</td></tr>`;
+            } finally {
+                refreshBtn.disabled = false;
+            }
+        }
+
+        refreshBtn.addEventListener('click', loadPrices);
+        window.addEventListener('DOMContentLoaded', loadPrices);
+    </script>
+</body>
+</html>
